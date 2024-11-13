@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Training Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #f0f2f5;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .progress-bar {
+            display: grid;
+            grid-template-columns: repeat(20, 1fr);
+            gap: 5px;
+            margin: 20px 0;
+        }
+
+        .level-indicator {
+            height: 20px;
+            background: #ddd;
+            border-radius: 3px;
+        }
+
+        .level-indicator.correct {
+            background: #4caf50;
+        }
+
+        .level-indicator.wrong {
+            background: #f44336;
+        }
+
+        .game-title {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .rules {
+            text-align: left;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            max-width: 600px;
+        }
+
+        .number-display {
+            font-size: 4em;
+            margin: 30px 0;
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .timer {
+            font-size: 2em;
+            color: #f44336;
+            margin: 20px 0;
+        }
+
+        .input-section {
+            margin: 20px 0;
+        }
+
+        input {
+            padding: 10px;
+            font-size: 1.2em;
+            width: 300px;
+            margin: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+        }
+
+        button {
+            padding: 10px 30px;
+            font-size: 1.2em;
+            background: #2196f3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin: 0 10px;
+        }
+
+        button:hover {
+            background: #1976d2;
+        }
+
+        button.end-game {
+            background: #f44336;
+        }
+
+        button.end-game:hover {
+            background: #d32f2f;
+        }
+
+        .result {
+            margin: 20px 0;
+            font-size: 1.5em;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .controls {
+            margin: 20px 0;
+        }
+
+        .level-info {
+            font-size: 1.2em;
+            margin: 10px 0;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="progress-bar">
+            <!-- Progress indicators will be added here -->
+        </div>
+
+        <div id="welcomeScreen">
+            <h1 class="game-title">Memory Training Game</h1>
+            <div class="rules">
+                <h2>Game Rules:</h2>
+                <ul>
+                    <li>The game has 20 levels</li>
+                    <li>Each level shows a number for 5 seconds</li>
+                    <li>Numbers start from 1 digit and increase to 20 digits</li>
+                    <li>Memorize the number and input it correctly</li>
+                    <li>Points per level: Level 1 = 5 points, Level 2 = 10 points, etc.</li>
+                    <li>Total possible points: 1050</li>
+                    <li>Score above 840 is considered excellent</li>
+                    <li>You can end the game at any time</li>
+                </ul>
+            </div>
+            <button id="startGame">Start Game</button>
+        </div>
+
+        <div id="gameScreen" class="hidden">
+            <div class="level-info" id="levelInfo"></div>
+            <div class="number-display" id="numberDisplay"></div>
+            <div class="timer" id="timer"></div>
+            <div class="input-section hidden" id="inputSection">
+                <input type="number" id="userInput" placeholder="Enter the number">
+                <button id="submitAnswer">Submit</button>
+            </div>
+            <div class="controls">
+                <button class="end-game" id="endGame">End Game</button>
+            </div>
+        </div>
+
+        <div id="resultScreen" class="hidden">
+            <h2>Game Complete!</h2>
+            <div class="result" id="finalScore"></div>
+            <div class="result" id="levelsCompleted"></div>
+            <div class="result" id="performance"></div>
+            <button id="playAgain">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        class MemoryGame {
+            constructor() {
+                this.currentLevel = 1;
+                this.maxLevels = 20;
+                this.score = 0;
+                this.numbers = [];
+                this.timer = null;
+                this.timeLeft = 5;
+                this.initializeUI();
+                this.createProgressBar();
+            }
+
+            initializeUI() {
+                this.welcomeScreen = document.getElementById('welcomeScreen');
+                this.gameScreen = document.getElementById('gameScreen');
+                this.resultScreen = document.getElementById('resultScreen');
+                this.numberDisplay = document.getElementById('numberDisplay');
+                this.timerDisplay = document.getElementById('timer');
+                this.inputSection = document.getElementById('inputSection');
+                this.userInput = document.getElementById('userInput');
+                this.levelInfo = document.getElementById('levelInfo');
+                
+                document.getElementById('startGame').addEventListener('click', () => this.startGame());
+                document.getElementById('submitAnswer').addEventListener('click', () => this.checkAnswer());
+                document.getElementById('playAgain').addEventListener('click', () => this.resetGame());
+                document.getElementById('endGame').addEventListener('click', () => this.endGameEarly());
+
+                // Add enter key support for input
+                this.userInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.checkAnswer();
+                    }
+                });
+            }
+
+            createProgressBar() {
+                const progressBar = document.querySelector('.progress-bar');
+                progressBar.innerHTML = '';
+                for (let i = 0; i < this.maxLevels; i++) {
+                    const indicator = document.createElement('div');
+                    indicator.className = 'level-indicator';
+                    progressBar.appendChild(indicator);
+                }
+            }
+
+            generateNumber(digits) {
+                const min = Math.pow(10, digits - 1);
+                const max = Math.pow(10, digits) - 1;
+                return Math.floor(Math.random() * (max - min + 1) + min);
+            }
+
+            startTimer() {
+                this.timeLeft = 5;
+                this.updateTimer();
+                this.timer = setInterval(() => {
+                    this.timeLeft--;
+                    this.updateTimer();
+                    if (this.timeLeft === 0) {
+                        clearInterval(this.timer);
+                        this.showInputSection();
+                    }
+                }, 1000);
+            }
+
+            updateTimer() {
+                this.timerDisplay.textContent = this.timeLeft;
+            }
+
+            showInputSection() {
+                this.numberDisplay.textContent = '';
+                this.inputSection.classList.remove('hidden');
+                this.userInput.focus();
+            }
+
+            startGame() {
+                this.welcomeScreen.classList.add('hidden');
+                this.gameScreen.classList.remove('hidden');
+                this.startLevel();
+            }
+
+            updateLevelInfo() {
+                this.levelInfo.textContent = `Level ${this.currentLevel} of 20 (${this.currentLevel} digits)`;
+            }
+
+            startLevel() {
+                this.inputSection.classList.add('hidden');
+                this.userInput.value = '';
+                this.updateLevelInfo();
+                const number = this.generateNumber(this.currentLevel);
+                this.numbers[this.currentLevel - 1] = number;
+                this.numberDisplay.textContent = number;
+                this.startTimer();
+            }
+
+            checkAnswer() {
+                const userAnswer = this.userInput.value;
+                const correct = parseInt(userAnswer) === this.numbers[this.currentLevel - 1];
+                
+                const indicators = document.querySelectorAll('.level-indicator');
+                indicators[this.currentLevel - 1].classList.add(correct ? 'correct' : 'wrong');
+                
+                if (correct) {
+                    this.score += this.currentLevel * 5;
+                }
+
+                this.currentLevel++;
+                
+                if (this.currentLevel <= this.maxLevels) {
+                    this.startLevel();
+                } else {
+                    this.endGame(true);
+                }
+            }
+
+            endGameEarly() {
+                clearInterval(this.timer);
+                this.endGame(false);
+            }
+
+            endGame(completed) {
+                this.gameScreen.classList.add('hidden');
+                this.resultScreen.classList.remove('hidden');
+                
+                const finalScore = document.getElementById('finalScore');
+                const levelsCompleted = document.getElementById('levelsCompleted');
+                const performance = document.getElementById('performance');
+                
+                finalScore.textContent = `Final Score: ${this.score} / 1050`;
+                levelsCompleted.textContent = `Levels Completed: ${this.currentLevel - 1} / 20`;
+                
+                let performanceText = '';
+                if (!completed) {
+                    performanceText = `Game ended at level ${this.currentLevel}`;
+                } else if (this.score >= 840) {
+                    performanceText = 'Excellent! Your memory is exceptional!';
+                } else if (this.score >= 630) {
+                    performanceText = 'Good job! Keep practicing!';
+                } else {
+                    performanceText = 'Practice more to improve your memory!';
+                }
+                
+                performance.textContent = performanceText;
+            }
+
+            resetGame() {
+                this.currentLevel = 1;
+                this.score = 0;
+                this.numbers = [];
+                this.createProgressBar();
+                this.resultScreen.classList.add('hidden');
+                this.welcomeScreen.classList.remove('hidden');
+            }
+        }
+
+        // Initialize the game
+        window.onload = () => {
+            new MemoryGame();
+        };
+    </script>
+</body>
+</html>
